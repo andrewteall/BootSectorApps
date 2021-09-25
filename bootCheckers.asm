@@ -9,12 +9,10 @@ MoveBuffer          equ 0x0342      ; 7 bytes
 	org 0x7c00
 ; Code
 start:
-	call clear_text_screen
-
-    mov bx,Player1_PiecesLeft
-    mov byte [bx],12
-    mov bx,Player2_PiecesLeft
-    mov byte [bx],12
+    ; mov bx,Player1_PiecesLeft
+    ; mov byte [bx],12
+    ; mov bx,Player2_PiecesLeft
+    ; mov byte [bx],12
     
 ; Fill the board with blank spaces
     mov cx,64
@@ -61,29 +59,30 @@ IncSquare:
     dec dx
     jne SetupPlayer
     
-; Start Game Loop
-GameLoop:
-RetryTurn:
-    call clear_text_screen
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Start Game Logic
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+StartTurn:
+    call clear_screen               ; Clear the screen
 DrawBoard:
-    mov bx,Title
+    mov bx,Title                    ; Print the title at the top of the board
     call print_string
-    call newline
-    call newline
+    call newline                    ; Make some space between the title
+    call newline                    ; and the board
 
-    mov bx,BOARD
+    mov bx,BOARD                    ; Draw the board and pieces
     mov al,'1'
     mov cx,8
-DrawBoardSub:
+DrawBoardLoop:
     call display_letter
     push ax
     mov al,' '
     call display_letter
     
-    call DrawRow
+    call drawRow
     pop ax
     inc ax
-    loop DrawBoardSub
+    loop DrawBoardLoop
     mov bx,ColIdx
     call print_string
 
@@ -97,28 +96,40 @@ DrawBoardSub:
 BlackTurn:
     mov bx,BlkMov
 RedTurn:    
-    call print_string
+    call print_string               ; End Drawing the board
 
-    read_move:
-    mov bx,MoveBuffer
-read_next_key:
-    mov ah,0x00             ; Load AH with code for keyboard read
-    int 0x16                ; Call the BIOS for reading keyboard
+ReadMove:                           ; Let the user type in the move to be 
+    mov bx,MoveBuffer               ; performed
+ReadNextKey:
+    mov ah,0x00                     ; Load AH with code for keyboard read
+    int 0x16                        ; Call the BIOS for reading keyboard
+    cmp al,8
+    jne SkipBackSpace
+    cmp bx,MoveBuffer
+    je ReadNextKey
+    mov byte [bx],al
+    call display_letter
+    mov al,' '
+    call display_letter
+    mov al,8
+    call display_letter
+    dec bx
+    jmp ReadNextKey
+SkipBackSpace:
     cmp al,13
     je EndRead
     mov byte [bx],al
     call display_letter
     inc bx
-    jmp read_next_key
-EndRead:
+    jmp ReadNextKey
+EndRead:                            ; End reading move
 
-do_move:
-    xor ax,ax
-    xor bx,bx
+DoMove:                             ; Perform the move entered if it is a
+    xor bx,bx                       ; valid move
     mov al,[MoveBuffer+2]
 
     sub al,0x31
-    mov cx, 0x0008
+    mov cl, 0x08
     mul cx
     
     mov bl,[MoveBuffer]
@@ -133,12 +144,12 @@ do_move:
     
     ;;
     
-    xor ax,ax
+    ; xor ax,ax
     xor bx,bx
     mov al,[MoveBuffer+6]
 
     sub al,0x31
-    mov dx,0x0008
+    mov dl,0x08
     mul dx
     
     mov bl,[MoveBuffer+4]
@@ -149,18 +160,30 @@ do_move:
 
     add bx,BOARD
 
+    xor di,1
+    cmp di,0
+    jne SkipRedMove
+    cmp cl,'R'
+    jne StartTurn
+    jmp SkipBlackMove
+SkipRedMove:
+    cmp cl,'B'
+    jne StartTurn
+SkipBlackMove:
+    xor di,1
+
     mov dx,[bx]
     cmp dl,0x20
     je ContinueTurn
     xor di,1
-    jmp RetryTurn
+    jmp StartTurn
 
 ContinueTurn:
 
     mov byte [bx],cl
-    mov byte [si],' '
+    mov byte [si],' '               ; End performing move
 
-check_jump:
+check_jump:                         ; See if a jump was performed
     xor ax,ax
     mov al,[MoveBuffer+6]
     sub al,[MoveBuffer+2]
@@ -213,27 +236,27 @@ DoneNum2:
 
     add bx,BOARD
 
-    mov byte [bx],' '
+    mov byte [bx],' '               ; End Checking for a Junp
 
 no_jump:
+    jmp StartTurn                   ; Next turn
 
-    
-
-    jmp GameLoop
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Sub-Routines
-
-DrawRow:
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+drawRow:
     push cx
     mov cx,8
-DrawRowSub:
-    call DrawSquare
-    loop DrawRowSub
+drawRowLoop:
+    call drawSquare
+    loop drawRowLoop
     call newline
     pop cx
     ret
 
-DrawSquare:
+drawSquare:
     mov al,[bx]
     call display_letter
     inc bx
@@ -279,8 +302,7 @@ end:
     pop ax
     ret
 
-clear_text_screen:
-    ; clear screen
+clear_screen:
     push ax
     mov ah, 0x00
     mov al, 0x03  ; text mode 80x25 16 colours
@@ -289,10 +311,10 @@ clear_text_screen:
     ret
     
 ; Data
-Title: db "    Checkers",0
+Title:  db "    Checkers",0
 ColIdx: db "  1 2 3 4 5 6 7 8",0
-RedMov: db "R?",0
-BlkMov: db "B?",0
+RedMov: db "Red Move?",0
+BlkMov: db "Black Move?",0
     
     
     times 510-($-$$) db 0x4f
