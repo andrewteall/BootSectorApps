@@ -15,7 +15,7 @@ start:
     ; mov byte [bx],12
     
 ; Fill the board with blank spaces
-    mov cx,64
+    mov cl,64
     mov bx,BOARD
     mov al,' '
 ClearBoard:
@@ -25,14 +25,14 @@ ClearBoard:
 
 ; Setup Checker Pieces
     mov bx,BOARD
-    mov dx,2
-    mov ax,'B'
+    mov dl,2
+    mov al,'B'
     
 SetupPlayer:
-    mov cx,3
+    mov cl,3
 SetupRow:
     push cx
-    mov cx,4
+    mov cl,4
 SetupSquare:
     mov [bx],al
     add bx,2
@@ -55,7 +55,7 @@ IncSquare:
     loop SetupRow
 
     add bx,18
-    mov ax,'R'
+    mov al,'R'
     dec dx
     jne SetupPlayer
     
@@ -72,7 +72,7 @@ DrawBoard:
 
     mov bx,BOARD                    ; Draw the board and pieces
     mov al,'1'
-    mov cx,8
+    mov cl,8
 DrawBoardLoop:
     call display_letter
     push ax
@@ -133,18 +133,15 @@ DoMove:                             ; Perform the move entered if it is a
     mul cx
     
     mov bl,[MoveBuffer]
-    sub bl,0x30
+    sub bl,0x31
 
     add bl,al
-    sub bl,0x0001
 
     add bx,BOARD
     mov byte cl,[bx]
     mov si,bx
     
     ;;
-    
-    ; xor ax,ax
     xor bx,bx
     mov al,[MoveBuffer+6]
 
@@ -153,10 +150,9 @@ DoMove:                             ; Perform the move entered if it is a
     mul dx
     
     mov bl,[MoveBuffer+4]
-    sub bl,0x30
+    sub bl,0x31
 
     add bl,al
-    sub bl,0x0001
 
     add bx,BOARD
 
@@ -178,66 +174,52 @@ SkipBlackMove:
     jmp StartTurn
 
 ContinueTurn:
-
     mov byte [bx],cl
     mov byte [si],' '               ; End performing move
 
-check_jump:                         ; See if a jump was performed
-    xor ax,ax
+CheckJump:                         ; See if a jump was performed
     mov al,[MoveBuffer+6]
     sub al,[MoveBuffer+2]
     cmp al,1
-    je no_jump
+    je NoJumpPerformed
     cmp al,-1
-    je no_jump
+    je NoJumpPerformed
 
-    cmp al, 2
-    jne SkipNeg
-    mov cl,1
-    jmp DoneNum1
-SkipNeg:
     mov cl,-1
-
-DoneNum1:
-
+    cmp al, 2
+    jne VerticalJumpDirectionSet
+    mov cl,1
+VerticalJumpDirectionSet:
+    
     mov al,[MoveBuffer+2]
     
     sub al,0x31
-    add byte al,cl
+    add al,cl
 
-    
-    mov cx, 0x0008
+    mov cl, 0x08
     mul cx
     mov bl,al
 ;;
-    xor ax,ax
     mov al,[MoveBuffer+4]
     sub al,[MoveBuffer]
     
-    cmp al, 2
-    jne SkipNeg2
-    mov cl,1
-    jmp DoneNum2
-SkipNeg2:
     mov cl,-1
-
-DoneNum2:
-
+    cmp al, 2
+    jne HorizontalJumpDirectionSet
+    mov cl,1
+HorizontalJumpDirectionSet:
+    
     mov al,[MoveBuffer]
     
-    sub al,0x30
+    sub al,0x31
     add al,cl
-    
     and bx,0x00FF
-
     add bl,al
-    sub bl,0x0001
-
     add bx,BOARD
 
     mov byte [bx],' '               ; End Checking for a Junp
 
-no_jump:
+NoJumpPerformed:
     jmp StartTurn                   ; Next turn
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -247,7 +229,7 @@ no_jump:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 drawRow:
     push cx
-    mov cx,8
+    mov cl,8
 drawRowLoop:
     call drawSquare
     loop drawRowLoop
