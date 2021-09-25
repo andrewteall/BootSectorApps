@@ -161,7 +161,6 @@ DoMove:                             ; Perform the move entered if it is a
     add bx,BOARD
 
     xor di,1
-    cmp di,0
     jne SkipRedMove
     cmp cl,'R'
     jne StartTurn
