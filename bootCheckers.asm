@@ -11,108 +11,60 @@ MoveBuffer          equ 0x0342      ; 7 bytes
 start:
 	call clear_text_screen
 
-    ; mov bx,Player1_PiecesLeft
-    ; mov byte [bx],12
-    ; mov bx,Player2_PiecesLeft
-    ; mov byte [bx],12
-
+    mov bx,Player1_PiecesLeft
+    mov byte [bx],12
+    mov bx,Player2_PiecesLeft
+    mov byte [bx],12
+    
+; Fill the board with blank spaces
     mov cx,64
     mov bx,BOARD
-    mov ax,' '
+    mov al,' '
 ClearBoard:
     mov [bx],al
     inc bx
     loop ClearBoard
 
-    mov cx,8
+; Setup Checker Pieces
     mov bx,BOARD
+    mov dx,2
     mov ax,'B'
     
-SetupBlack1:
+SetupPlayer:
+    mov cx,3
+SetupRow:
+    push cx
+    mov cx,4
+SetupSquare:
     mov [bx],al
-    inc bx
-    inc bx
-    dec cx
-    loop SetupBlack1
+    add bx,2
+    loop SetupSquare
 
-    inc bx
-    mov cx,8
-SetupBlack2:
-    mov [bx],al
-    inc bx
-    inc bx
-    dec cx
-    loop SetupBlack2
+    pop cx
+    cmp cx,3
+    je AdjustSquare
+    cmp dx,2
+    je DecSquare
+    jmp IncSquare
 
-    dec bx
-    mov cx,8
-SetupBlack3:
-    mov [bx],al
+AdjustSquare:
+    cmp dx,2
+    je IncSquare
+DecSquare:
+    sub bx,2
+IncSquare:
     inc bx
-    inc bx
-    dec cx
-    loop SetupBlack3
+    loop SetupRow
 
-    mov cx,8
-    add bx,16
+    add bx,18
     mov ax,'R'
-    inc bx
-SetupRed1:
-    mov [bx],al
-    inc bx
-    inc bx
-    dec cx
-    loop SetupRed1
-
-    dec bx
-    mov cx,8
-SetupRed2:
-    mov [bx],al
-    inc bx
-    inc bx
-    dec cx
-    loop SetupRed2
-
-    inc bx
-    mov cx,8
-SetupRed3:
-    mov [bx],al
-    inc bx
-    inc bx
-    dec cx
-    loop SetupRed3
-
+    dec dx
+    jne SetupPlayer
     
+; Start Game Loop
 GameLoop:
-    call DrawBoard
-    call newline
-    call newline
-    mov bx,RedMov
-    call print_string
-    call read_move
-
-    call do_move
-    call check_jump
-
+RetryTurn:
     call clear_text_screen
-
-    call DrawBoard
-    call newline
-    call newline
-    mov bx,BlkMov
-    call print_string
-    call read_move
-
-    call do_move
-    call check_jump
-
-    call clear_text_screen
-
-    jmp GameLoop
-
-    jmp $
-
-; Sub-Routines
 DrawBoard:
     mov bx,Title
     call print_string
@@ -134,7 +86,142 @@ DrawBoardSub:
     loop DrawBoardSub
     mov bx,ColIdx
     call print_string
-    ret
+
+    call newline
+    call newline
+    
+    xor di,1
+    je BlackTurn
+    mov bx,RedMov
+    jmp RedTurn
+BlackTurn:
+    mov bx,BlkMov
+RedTurn:    
+    call print_string
+
+    read_move:
+    mov bx,MoveBuffer
+read_next_key:
+    mov ah,0x00             ; Load AH with code for keyboard read
+    int 0x16                ; Call the BIOS for reading keyboard
+    cmp al,13
+    je EndRead
+    mov byte [bx],al
+    call display_letter
+    inc bx
+    jmp read_next_key
+EndRead:
+
+do_move:
+    xor ax,ax
+    xor bx,bx
+    mov al,[MoveBuffer+2]
+
+    sub al,0x31
+    mov cx, 0x0008
+    mul cx
+    
+    mov bl,[MoveBuffer]
+    sub bl,0x30
+
+    add bl,al
+    sub bl,0x0001
+
+    add bx,BOARD
+    mov byte cl,[bx]
+    mov si,bx
+    
+    ;;
+    
+    xor ax,ax
+    xor bx,bx
+    mov al,[MoveBuffer+6]
+
+    sub al,0x31
+    mov dx,0x0008
+    mul dx
+    
+    mov bl,[MoveBuffer+4]
+    sub bl,0x30
+
+    add bl,al
+    sub bl,0x0001
+
+    add bx,BOARD
+
+    mov dx,[bx]
+    cmp dl,0x20
+    je ContinueTurn
+    xor di,1
+    jmp RetryTurn
+
+ContinueTurn:
+
+    mov byte [bx],cl
+    mov byte [si],' '
+
+check_jump:
+    xor ax,ax
+    mov al,[MoveBuffer+6]
+    sub al,[MoveBuffer+2]
+    cmp al,1
+    je no_jump
+    cmp al,-1
+    je no_jump
+
+    cmp al, 2
+    jne SkipNeg
+    mov cl,1
+    jmp DoneNum1
+SkipNeg:
+    mov cl,-1
+
+DoneNum1:
+
+    mov al,[MoveBuffer+2]
+    
+    sub al,0x31
+    add byte al,cl
+
+    
+    mov cx, 0x0008
+    mul cx
+    mov bl,al
+;;
+    xor ax,ax
+    mov al,[MoveBuffer+4]
+    sub al,[MoveBuffer]
+    
+    cmp al, 2
+    jne SkipNeg2
+    mov cl,1
+    jmp DoneNum2
+SkipNeg2:
+    mov cl,-1
+
+DoneNum2:
+
+    mov al,[MoveBuffer]
+    
+    sub al,0x30
+    add al,cl
+    
+    and bx,0x00FF
+
+    add bl,al
+    sub bl,0x0001
+
+    add bx,BOARD
+
+    mov byte [bx],' '
+
+no_jump:
+
+    
+
+    jmp GameLoop
+
+; Sub-Routines
 
 DrawRow:
     push cx
@@ -154,128 +241,52 @@ DrawSquare:
     call display_letter
     ret
 
+display_letter:
+    push ax
+    push bx
+    mov ah,0x0e             ; Load AH with code for terminal output
+    mov bx,0x000f           ; Load BH page zero and BL color (graphic mode)
+    int 0x10                ; Call the BIOS for displaying one letter
+    pop bx
+    pop ax
+    ret
 
-read_move:
-
-    mov bx,MoveBuffer
-read_next_key:
-    mov ah,0x00             ; Load AH with code for keyboard read
-    int 0x16                ; Call the BIOS for reading keyboard
-    cmp al,13
-    je EndRead
-    mov byte [bx],al
+newline:
+    push ax
+    mov al,13
     call display_letter
-    inc bx
-    jmp read_next_key
-
-EndRead:
-
+    mov al,10
+    call display_letter
+    pop ax
     ret
 
-do_move:
-    mov ax,0x0000
-    mov bx,0x0000
-    mov al,[MoveBuffer+2]
-
-    sub al,0x31
-    mov cx, 0x0008
-    mul cx
-    
-    mov bl,[MoveBuffer]
-    sub bl,0x30
-
-    add bl,al
-    sub bl,0x0001
-
-    add bx,BOARD
-    mov byte cl,[bx]
-    
-    mov byte [bx],' '
-
-    ;;
-    mov ax,0x0000
-    mov bx,0x0000
-    mov al,[MoveBuffer+6]
-
-    sub al,0x31
-    mov dx,0x0008
-    mul dx
-    
-    mov bl,[MoveBuffer+4]
-    sub bl,0x30
-
-    add bl,al
-    sub bl,0x0001
-
-    add bx,BOARD
-
-    mov byte [bx],cl
+print_string:
+    push ax
+    push bx
+print_string_loop:
+    mov al,[bx]
+    test al,al
+    je end
+	push bx
+    mov ah,0x0e             ; Load AH with code for terminal output
+    mov bx,0x000f           ; Load BH page zero and BL color (graphic mode)
+    int 0x10                ; Call the BIOS for displaying one letter
+    pop bx
+	inc bx
+	jmp print_string_loop
+end:
+    pop bx
+    pop ax
     ret
 
-check_jump:
-    xor ax,ax                       ; 7,7 5,5                   3,7 5,5
-    mov al,[MoveBuffer+6]           ; al = '5'                  al = 5
-    
-    
-    sub al,[MoveBuffer+2]           ; al = -2
-    cmp al,1
-    je no_jump
-    cmp al,-1
-    je no_jump
-
-    cmp al, 2
-    jne SkipNeg
-    mov cl,1
-    jmp DoneNum1
-SkipNeg:
-    mov cl,-1
-
-DoneNum1:
-
-    mov al,[MoveBuffer+2]           ; al = '7'
-    
-    sub al,0x31                     ; al = 6
-    add byte al,cl                  ; al = 5
-
-    
-    mov cx, 0x0008                  ; al = 5 cx = 8
-    mul cx                          ; al = 40
-    mov bl,al                       ; dl = 40
-;;
-    xor ax,ax
-    mov al,[MoveBuffer+4]           ; al = '5'
-    sub al,[MoveBuffer]             ; al = -2                        al = 1
-    
-    cmp al, 2
-    jne SkipNeg2
-    mov cl,1
-    jmp DoneNum2
-SkipNeg2:
-    mov cl,-1
-
-DoneNum2:
-
-    mov al,[MoveBuffer]             ; al = '7'
-    
-    sub al,0x30                     ; al = 7
-    add al,cl                  ; al = 6
-    
-    and bx,0x00FF
-
-    add bl,al                       ; bl = 46
-    sub bl,0x0001                   ; bl = 45
-
-    add bx,BOARD                    ; 
-
-    mov byte [bx],' '
-
-no_jump:
+clear_text_screen:
+    ; clear screen
+    push ax
+    mov ah, 0x00
+    mov al, 0x03  ; text mode 80x25 16 colours
+    int 0x10
+    pop ax
     ret
-
-
-
-; Includes
-%include "library1.asm"
     
 ; Data
 Title: db "    Checkers",0
