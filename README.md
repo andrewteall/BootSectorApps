@@ -5,3 +5,5 @@ Using Nasm for Assembly and Qemu to run the application via the build.sh and run
 
 ## BootCheckers
 A simple text mode implementation of the classic game Checkers. Enter your move by by typing `Column-of-Piece-to-Move,Row-of-Piece-to-Move Column-of-Destination,Row-of-Destination` then pressing `Enter`.
+
+To Restart the game press `q`.
