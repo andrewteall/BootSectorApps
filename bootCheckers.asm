@@ -8,7 +8,8 @@ MoveBuffer          equ 0x0342      ; 7 bytes
 
 	org 0x7c00
 ; Code
-start:
+Start:
+    mov di,0                        ; Set Di=0 so game always starts Red turn
     ; mov bx,Player1_PiecesLeft
     ; mov byte [bx],12
     ; mov bx,Player2_PiecesLeft
@@ -103,6 +104,10 @@ ReadMove:                           ; Let the user type in the move to be
 ReadNextKey:
     mov ah,0x00                     ; Load AH with code for keyboard read
     int 0x16                        ; Call the BIOS for reading keyboard
+    cmp al,113
+    jne SkipReset
+    jmp Start
+SkipReset:
     cmp al,8
     jne SkipBackSpace
     cmp bx,MoveBuffer
