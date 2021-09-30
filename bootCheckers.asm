@@ -1,5 +1,9 @@
 	cpu 8086
 
+; TODO: Kings
+; TODO: Prevent Jumping your own pieces
+; TODO: Validate Move
+; TODO: Determine Winner
 
 BOARD:              equ 0x0300
 Player1_PiecesLeft  equ 0x0340
